@@ -8,8 +8,8 @@ const port = 80;
 
 app.use(express.json());
 
-app.use(bodyParser.json({ limit: '1gb' }));
-app.use(bodyParser.urlencoded({ limit: '1gb', extended: true }));
+app.use(bodyParser.json({ limit: '10gb' }));
+app.use(bodyParser.urlencoded({ limit: '10gb', extended: true }));
 
 async function readJsonFile(filePath) {
   try {
