@@ -1,13 +1,16 @@
 const fs = require("fs").promises;
+const fss = require("fs");
+
 const axios = require("axios");
 const express = require("express");
 const bodyParser = require("body-parser");
+const path = require("path");
 
 const app = express();
 const port = 80;
 
-app.use(bodyParser.json({ limit: '10gb' }));
-app.use(bodyParser.urlencoded({ limit: '10gb', extended: true }));
+app.use(bodyParser.json({ limit: "10gb" }));
+app.use(bodyParser.urlencoded({ limit: "10gb", extended: true }));
 
 async function readJsonFile(filePath) {
   try {
@@ -36,7 +39,7 @@ function divideArrayEqually(arr, y) {
   return result;
 }
 
-async function sendRequests(urls) {
+async function sendRequests(urls, bundle) {
   try {
     const serverIPs = await readJsonFile("servers.json");
     const serverData = await readJsonFile("sessions.json");
@@ -48,6 +51,7 @@ async function sendRequests(urls) {
       try {
         const response = await axios.post(serverUrl, {
           chat_urls_or_usernames: partialsUrls[index],
+          bundle,
           ...serverData[index],
         });
         console.log(
@@ -55,7 +59,7 @@ async function sendRequests(urls) {
           response.data
         );
       } catch (error) {
-        console.error(`Error sending request to ${serverIp}:`, error.message);
+        console.error(`Error sending request to ${serverUrl}:`, error.message);
       }
     }
   } catch (error) {
@@ -66,38 +70,59 @@ async function sendRequests(urls) {
 
 app.post("/parse", async (req, res) => {
   try {
-    const { urls } = req.body;
+    const { urls, bundle } = req.body;
 
     if (!Array.isArray(urls) || urls.length === 0) {
-      return res.status(400).json({ error: "Invalid URLs array" });
+      return res.status(400).send("Invalid URLs array");
+    }
+    if (!bundle) {
+      return res.status(400).send("Bundle not defined");
     }
 
-    await sendRequests(urls);
-    res.json({ success: true, message: "Requests sent successfully" });
+    const bundlePath = path.join(__dirname, "saved", bundle);
+    try {
+      await fs.stat(bundlePath);
+      return res
+        .status(400)
+        .send("Bundle directory already exists, please rename");
+    } catch {}
+
+    await sendRequests(urls, bundle);
+    res.send("Requests sent successfully");
   } catch (error) {
     console.error("Error in /parse route:", error.message);
-    res.status(500).json({ success: false, error: "Internal Server Error" });
+    res.status(500).send("Internal Server Error");
   }
 });
 
-app.post("/:time/save", async (req, res) => {
+app.post("/:bundle/save", async (req, res) => {
   try {
-    const { time } = req.params;
+    const { remoteAddress } = req.connection;
+
+    const { bundle } = req.params;
     const { jsonData } = req.body;
 
-    if (!time || !jsonData) {
-      return res.status(400).json({
-        success: false,
-        error: "time или jsonData - обязательны",
-      });
+    if (!bundle || !jsonData) {
+      return res.status(400).send("Bundle and jsonData are required");
     }
 
-    await fs.writeFile(`saved/${time}.json`, JSON.stringify(jsonData, null, 2));
-    res.json({ success: true, message: "Данные успешно сохранены" });
+    const bundleFolderPath = path.join(__dirname, "saved", bundle);
+    if (!fss.existsSync(bundleFolderPath)) {
+      fss.mkdirSync(bundleFolderPath, { recursive: true });
+    }
+
+    await fs.writeFile(
+      path.join(bundleFolderPath, `${remoteAddress.replace(/^.*:/, "")}.json`),
+      JSON.stringify(jsonData, null, 2)
+    );
+
+    res.send("Data saved successfully");
   } catch (error) {
     console.error("Error saving data:", error.message);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).send(error.message);
   }
 });
 
-app.listen(port);
+app.listen(port, () => {
+  console.log("Server working now");
+});
