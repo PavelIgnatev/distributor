@@ -98,6 +98,9 @@ app.post("/parse", async (req, res) => {
 app.post("/:bundle/save", async (req, res) => {
   try {
     const { remoteAddress } = req.connection;
+    const ip = remoteAddress.replace(/^.*:/, "");
+
+    console.log(`Начинаю обрабатывать запрос на сохранение от IP: ${ip}`);
 
     const { bundle } = req.params;
     const { jsonData } = req.body;
@@ -112,7 +115,7 @@ app.post("/:bundle/save", async (req, res) => {
     }
 
     await fs.writeFile(
-      path.join(bundleFolderPath, `${remoteAddress.replace(/^.*:/, "")}.json`),
+      path.join(bundleFolderPath, `${ip}.json`),
       JSON.stringify(jsonData, null, 2)
     );
 
