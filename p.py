@@ -5,7 +5,7 @@ import json
 import os
 from aiohttp import web
 
-app = web.Application()
+app = web.Application(client_max_size=0)
 
 async def read_json_file(file_path):
     try:
@@ -37,7 +37,7 @@ async def send_requests(urls, bundle):
         server_data = await read_json_file("sessions.json")
         partials_urls = divide_array_equally(urls, len(server_ips))
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=0)) as session:
             tasks = []
             for index, server_ip in enumerate(server_ips):
                 server_url = f"http://{server_ip}/task"
