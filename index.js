@@ -9,8 +9,8 @@ const path = require("path");
 const app = express();
 const port = 80;
 
-app.use(bodyParser.json({ limit: "10gb" }));
-app.use(bodyParser.urlencoded({ limit: "10gb", extended: true }));
+app.use(express.json({ limit: "Infinity" }));
+app.use(express.urlencoded({ limit: "Infinity", extended: true }));
 
 async function readJsonFile(filePath) {
   try {
